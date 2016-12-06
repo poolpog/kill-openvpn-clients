@@ -1,0 +1,69 @@
+#!/usr/bin/env python
+#===============================================================================
+#        USAGE: kill-vpn-clients
+#  DESCRIPTION: Scans the openvpn-status.log for connected clients and kills ones older
+#               than a configurable value. Currently set to 24h
+#
+#               Version 0.1.0 of this script won't actually perform the vpn client kill
+#               step. It will only log that clients were found that need to be killed.
+#               The actuall kill will be implemented once this script is shown to be
+#               working properly.
+# REQUIREMENTS: OpenVPN must be listening on its TCP management interface.
+#               See: https://openvpn.net/index.php/open-source/documentation/miscellaneous/79-management-interface.html
+#       AUTHOR: Pool Pog <poolpog@gmail.com>
+#    COPYRIGHT: Copyright (c) 2016
+#    REVISIONS: 0.1.1-2016-02-17
+#===============================================================================
+import re
+import os
+from datetime import datetime
+
+if os.geteuid() != 0:
+    exit("You need run this script as root. Exiting.")
+
+# Configurable values are here
+client_status_log="/etc/openvpn/openvpn-status.log"
+# Uncomment this when testing is done
+timeout_seconds = 24*60*60
+
+# This is for the unix domain socket version of the interface
+# mgmt_connect_string="socat /dev/openvpn"
+
+# This is for the TCP listener version of the interface
+mgmt_connect_string="nc localhost 7075"
+
+# END CONFIG - Don't edit below this line #
+
+now = int(datetime.now().strftime("%s"))
+kill_list = []
+
+try:
+    with open(client_status_log) as inf:
+        for line in inf:
+            line = line.rstrip()
+            if "ROUTING TABLE" in line:
+                break
+            if re.match(r".*\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}.*",line):
+                fields = line.split(",")
+                ip_addr = fields[1]
+                conn_start_hr = fields[4]
+                conn_start = int(datetime.strptime(fields[4], '%a %b %d %H:%M:%S %Y').strftime("%s"))
+                if ( now - conn_start > timeout_seconds ):
+                    kill_list.append({'ip_addr':ip_addr,'conn_start':conn_start,'conn_start_hr':conn_start_hr})
+
+        for kill_this in kill_list:
+            kill_string = "echo 'kill "+kill_this['ip_addr']+"'|"+mgmt_connect_string
+            logger_string = "echo 'INFO=>[OpenVPN timeout script] " + \
+                datetime.fromtimestamp(now).strftime('%a %b %d %H:%M:%S %Y') + \
+                " Killing client connected as " + \
+                str(kill_this['ip_addr']) + \
+                " with connection start at " + \
+                kill_this['conn_start_hr'] + \
+                "'|logger"
+            
+            # Uncomment next line once we're sure this works correctly
+            os.system(kill_string)
+            # Log this event so it appears in Sumo
+            os.system(logger_string)
+except:
+    print "OpenVPN does not appear to be running"
