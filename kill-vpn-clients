@@ -4,8 +4,10 @@
 #  DESCRIPTION: Scans the openvpn-status.log for connected clients and kills ones older
 #               than a configurable value. Currently set to 24h
 #
-# REQUIREMENTS: OpenVPN must be listening on its TCP management interface.
-#               See: https://openvpn.net/index.php/open-source/documentation/miscellaneous/79-management-interface.html
+# REQUIREMENTS: - OpenVPN must be listening on its TCP management interface.
+#                 See: https://openvpn.net/index.php/open-source/documentation/miscellaneous/79-management-interface.html
+#               - netcat is installed
+#               - logger is installed
 #       AUTHOR: Pool Pog <poolpog@gmail.com>
 #    COPYRIGHT: Copyright (c) 2016
 #    REVISIONS: 0.1.1-2016-02-17
@@ -19,13 +21,14 @@ if os.geteuid() != 0:
 
 # Configurable values are here
 client_status_log="/etc/openvpn/openvpn-status.log"
-# Uncomment this when testing is done
+
+# Change this to change the maximum session length
 timeout_seconds = 24*60*60
 
-# This is for the unix domain socket version of the interface
-# mgmt_connect_string="socat /dev/openvpn"
-
-# This is for the TCP listener version of the interface
+## These listener settings are mutually exclusive; only use the one you have configured in OpenVPN
+# This is for the unix domain socket version of the interface - *mutually exclusive of the TCP listener*
+#mgmt_connect_string="socat /dev/openvpn"
+# This is for the TCP listener version of the interface - *mutually exclusive of the Unix domain socket listener*
 mgmt_connect_string="nc localhost 7075"
 
 # END CONFIG - Don't edit below this line #
@@ -57,9 +60,8 @@ try:
                 kill_this['conn_start_hr'] + \
                 "'|logger"
             
-            # Uncomment next line once we're sure this works correctly
             os.system(kill_string)
-            # Log this event so it appears in Sumo
+            # Log this event to syslog
             os.system(logger_string)
 except:
     print "OpenVPN does not appear to be running"
