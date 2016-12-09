@@ -4,10 +4,6 @@
 #  DESCRIPTION: Scans the openvpn-status.log for connected clients and kills ones older
 #               than a configurable value. Currently set to 24h
 #
-#               Version 0.1.0 of this script won't actually perform the vpn client kill
-#               step. It will only log that clients were found that need to be killed.
-#               The actuall kill will be implemented once this script is shown to be
-#               working properly.
 # REQUIREMENTS: OpenVPN must be listening on its TCP management interface.
 #               See: https://openvpn.net/index.php/open-source/documentation/miscellaneous/79-management-interface.html
 #       AUTHOR: Pool Pog <poolpog@gmail.com>
